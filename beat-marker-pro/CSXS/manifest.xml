@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.beatmarkerpro.panel" ExtensionBundleVersion="2.0.0" ExtensionBundleName="Beat Marker Pro">
+
+  <ExtensionList>
+    <Extension Id="com.beatmarkerpro.panel.main" Version="2.0.0" />
+  </ExtensionList>
+
+  <ExecutionEnvironment>
+    <HostList>
+      <!-- Premiere Pro 2022 (v22) through 2026 (v27) -->
+      <Host Name="PPRO" Version="[22.0,99.9]" />
+    </HostList>
+    <LocaleList>
+      <Locale Code="All" />
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="11.0" />
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+
+  <DispatchInfoList>
+    <Extension Id="com.beatmarkerpro.panel.main">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./client/index.html</MainPath>
+          <ScriptPath>./host/index.jsx</ScriptPath>
+          <CEFCommandLine>
+            <Parameter>--allow-file-access-from-files</Parameter>
+            <Parameter>--enable-media-stream</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Beat Marker Pro</Menu>
+          <Geometry>
+            <Size>
+              <Height>700</Height>
+              <Width>360</Width>
+            </Size>
+            <MinSize>
+              <Height>400</Height>
+              <Width>280</Width>
+            </MinSize>
+            <MaxSize>
+              <Height>2000</Height>
+              <Width>600</Width>
+            </MaxSize>
+          </Geometry>
+          <Icons />
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+
+</ExtensionManifest>
