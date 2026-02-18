@@ -296,6 +296,126 @@ function listMarkers(maxCount) {
 }
 
 // ══════════════════════════════════════════════════════
+//  GET SELECTED CLIP SOURCE PATH (for Timeline Analysis)
+// ══════════════════════════════════════════════════════
+
+/**
+ * Returns the source file path and timing info for the currently selected
+ * clip in the timeline. Checks both audio and video tracks.
+ *
+ * @returns {string} JSON: { path, name, startTime, endTime, inPoint, outPoint }
+ *                   or   { error: "message" }
+ */
+function getSelectedClipSourcePath() {
+  try {
+    var seq = app.project.activeSequence;
+    if (!seq) return JSON.stringify({ error: "No active sequence" });
+
+    // Check audio tracks first
+    var audioTracks = seq.audioTracks;
+    for (var at = 0; at < audioTracks.numTracks; at++) {
+      var atrack = audioTracks[at];
+      var aclips = atrack.clips;
+      for (var ac = 0; ac < aclips.numItems; ac++) {
+        var aclip = aclips[ac];
+        if (aclip.isSelected()) {
+          try {
+            var apath = aclip.projectItem.getMediaPath();
+            return JSON.stringify({
+              path: apath,
+              name: aclip.projectItem.name || aclip.name,
+              startTime: parseFloat(aclip.start.seconds),
+              endTime: parseFloat(aclip.end.seconds),
+              inPoint: parseFloat(aclip.inPoint.seconds),
+              outPoint: parseFloat(aclip.outPoint.seconds),
+            });
+          } catch (ae) {
+            return JSON.stringify({ error: "Cannot access audio clip media: " + ae.toString() });
+          }
+        }
+      }
+    }
+
+    // Fall back to video tracks (clips with linked audio)
+    var videoTracks = seq.videoTracks;
+    for (var vt = 0; vt < videoTracks.numTracks; vt++) {
+      var vtrack = videoTracks[vt];
+      var vclips = vtrack.clips;
+      for (var vc = 0; vc < vclips.numItems; vc++) {
+        var vclip = vclips[vc];
+        if (vclip.isSelected()) {
+          try {
+            var vpath = vclip.projectItem.getMediaPath();
+            return JSON.stringify({
+              path: vpath,
+              name: vclip.projectItem.name || vclip.name,
+              startTime: parseFloat(vclip.start.seconds),
+              endTime: parseFloat(vclip.end.seconds),
+              inPoint: parseFloat(vclip.inPoint.seconds),
+              outPoint: parseFloat(vclip.outPoint.seconds),
+            });
+          } catch (ve) {}
+        }
+      }
+    }
+
+    return JSON.stringify({ error: "No clip selected — click a clip in the timeline first" });
+  } catch (e) {
+    return JSON.stringify({ error: e.toString() });
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  CLEAR MARKERS BY COMMENT PREFIX
+// ══════════════════════════════════════════════════════
+
+/**
+ * Removes markers in a time range whose comments start with a given prefix.
+ * Used for deduplication: detected markers are tagged with "[DETECT]",
+ * so re-running Place Detected Markers can clear only its own previous markers.
+ *
+ * @param {number} startSec      range start (seconds)
+ * @param {number} endSec        range end (seconds)
+ * @param {string} commentPrefix only delete markers whose comments start with this
+ * @returns {string} JSON { removed: N }
+ */
+function clearMarkersByCommentPrefix(startSec, endSec, commentPrefix) {
+  try {
+    var seq = app.project.activeSequence;
+    if (!seq) return JSON.stringify({ error: "No active sequence", removed: 0 });
+
+    var markers = seq.markers;
+    var marker = markers.getFirstMarker();
+    var toDelete = [];
+    var count = 0;
+
+    while (marker) {
+      var mTime = parseFloat(marker.start.seconds);
+      var mComment = marker.comments || "";
+
+      if (mTime >= parseFloat(startSec) && mTime <= parseFloat(endSec)) {
+        // Delete if no prefix filter, or if comment starts with the prefix
+        if (!commentPrefix || mComment.indexOf(commentPrefix) === 0) {
+          toDelete.push(marker);
+        }
+      }
+
+      marker = markers.getNextMarker(marker);
+      count++;
+      if (count > 50000) break; // Safety
+    }
+
+    for (var i = 0; i < toDelete.length; i++) {
+      try { markers.deleteMarker(toDelete[i]); } catch (de) {}
+    }
+
+    return JSON.stringify({ removed: toDelete.length });
+  } catch (e) {
+    return JSON.stringify({ error: e.toString(), removed: 0 });
+  }
+}
+
+// ══════════════════════════════════════════════════════
 //  UTILITY: CHECK CONNECTION
 // ══════════════════════════════════════════════════════
 

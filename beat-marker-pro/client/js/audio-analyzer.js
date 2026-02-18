@@ -42,9 +42,14 @@ class AudioAnalyzer {
 
   /**
    * Main analysis entry point.
-   * Returns detected events for each channel.
+   * Returns detected events for each channel, or null if cancelled.
+   *
+   * @param {AudioBuffer} audioBuffer
+   * @param {object} options
+   * @param {function} progressCallback  (pct, msg) => void
+   * @param {object} cancelToken         { cancelled: boolean } — set .cancelled = true to abort
    */
-  async analyze(audioBuffer, options = {}, progressCallback = null) {
+  async analyze(audioBuffer, options = {}, progressCallback = null, cancelToken = null) {
     const {
       detectKick = true,
       detectSnare = true,
@@ -68,20 +73,27 @@ class AudioAnalyzer {
 
     this.sampleRate = audioBuffer.sampleRate;
 
+    const isCancelled = () => cancelToken && cancelToken.cancelled;
+
     // Mix to mono
     if (progressCallback) progressCallback(5, "Mixing to mono...");
+    if (isCancelled()) return null;
     const mono = this._mixToMono(audioBuffer);
 
     // Compute STFT
     if (progressCallback) progressCallback(10, "Computing spectral analysis...");
-    const spectrogram = this._computeSTFT(mono, progressCallback);
+    if (isCancelled()) return null;
+    const spectrogram = this._computeSTFT(mono, progressCallback, cancelToken);
+    if (!spectrogram || isCancelled()) return null;
 
     // Extract band energies
     if (progressCallback) progressCallback(50, "Extracting frequency bands...");
+    if (isCancelled()) return null;
     const bandEnergies = this._extractBandEnergies(spectrogram);
 
     // Compute spectral flux per band
     if (progressCallback) progressCallback(60, "Computing spectral flux...");
+    if (isCancelled()) return null;
     const bandFlux = this._computeBandFlux(spectrogram);
 
     const results = {};
@@ -89,6 +101,7 @@ class AudioAnalyzer {
     // ── KICK DETECTION ──
     if (detectKick) {
       if (progressCallback) progressCallback(65, "Detecting kicks...");
+      if (isCancelled()) return null;
       const kickEnergy = this._combineBands(bandEnergies, ['subBass', 'bass'], [0.7, 0.3]);
       const kickOnsets = this._detectOnsets(kickEnergy, {
         sensitivity: sensitivityKick,
@@ -107,6 +120,7 @@ class AudioAnalyzer {
     // ── SNARE DETECTION ──
     if (detectSnare) {
       if (progressCallback) progressCallback(70, "Detecting snares...");
+      if (isCancelled()) return null;
       // Snare has wide spectral energy: body in low-mid, crack/snap in high-mid
       const snareEnergy = this._combineBands(bandEnergies, ['lowMid', 'highMid'], [0.4, 0.6]);
       // Also use spectral broadness — snare noise is spectrally wide
@@ -130,6 +144,7 @@ class AudioAnalyzer {
     // ── HI-HAT / CYMBAL DETECTION ──
     if (detectHihat) {
       if (progressCallback) progressCallback(75, "Detecting hi-hats...");
+      if (isCancelled()) return null;
       // Hi-hats dominate in the presence and brilliance bands
       // Use High Frequency Content (HFC) weighting for transient detection
       const hihatEnergy = this._combineBands(bandEnergies, ['presence', 'brilliance'], [0.5, 0.5]);
@@ -153,6 +168,7 @@ class AudioAnalyzer {
     // ── BASS LINE DETECTION ──
     if (detectBass) {
       if (progressCallback) progressCallback(80, "Detecting bass notes...");
+      if (isCancelled()) return null;
       // Bass detection focuses on sustained low frequency energy changes
       const bassEnergy = this._combineBands(bandEnergies, ['subBass', 'bass'], [0.3, 0.7]);
       // Use spectral flux in the bass range specifically for note changes
@@ -175,6 +191,7 @@ class AudioAnalyzer {
     // ── MELODY DETECTION ──
     if (detectMelody) {
       if (progressCallback) progressCallback(85, "Detecting melody changes...");
+      if (isCancelled()) return null;
       // Melody lives in the mid range — detect pitch/note changes via spectral flux
       const melodyFlux = this._combineBands(bandFlux, ['lowMid', 'highMid'], [0.5, 0.5]);
       // Spectral centroid changes indicate melodic movement
@@ -244,9 +261,9 @@ class AudioAnalyzer {
 
   /**
    * Short-Time Fourier Transform
-   * Returns array of magnitude spectra
+   * Returns array of magnitude spectra, or null if cancelled.
    */
-  _computeSTFT(samples, progressCallback) {
+  _computeSTFT(samples, progressCallback, cancelToken = null) {
     const numFrames = Math.floor((samples.length - this.fftSize) / this.hopSize) + 1;
     const spectrogram = [];
     const halfFFT = this.fftSize / 2;
@@ -258,6 +275,11 @@ class AudioAnalyzer {
     }
 
     for (let frame = 0; frame < numFrames; frame++) {
+      // Check cancellation every 200 frames to keep UI responsive
+      if (frame % 200 === 0 && cancelToken && cancelToken.cancelled) {
+        return null;
+      }
+
       const start = frame * this.hopSize;
 
       // Apply window

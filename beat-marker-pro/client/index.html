@@ -279,6 +279,51 @@
     .time-sig-row { display: flex; align-items: center; gap: 4px; }
     .time-sig-row select { width: 48px; height: 24px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-family: var(--font-mono); font-size: 12px; text-align: center; outline: none; cursor: pointer; -webkit-appearance: none; padding: 0 4px; }
     .time-sig-row .slash { font-size: 14px; color: var(--text-muted); }
+
+    /* Genre Presets */
+    .preset-row { display: flex; gap: 6px; align-items: center; }
+    .preset-select {
+      flex: 1; height: 26px; background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text-primary); font-size: 10px;
+      padding: 0 8px; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23999'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center; padding-right: 22px;
+    }
+    .preset-select:focus { border-color: var(--border-focus); }
+    .btn-suggest {
+      height: 26px; padding: 0 8px; background: var(--bg-tertiary);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      color: var(--text-secondary); font-size: 9px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-suggest:hover { background: #404040; color: var(--text-primary); }
+    .btn-suggest:disabled { opacity: 0.4; cursor: not-allowed; }
+    .preset-hint {
+      font-size: 9px; color: var(--text-muted); font-style: italic;
+      padding: 4px 8px; background: var(--bg-input); border-radius: var(--radius);
+      border: 1px solid var(--border); display: none;
+    }
+    .preset-hint.visible { display: block; }
+
+    /* Progress with cancel */
+    .progress-container { display: none; align-items: center; gap: 6px; }
+    .progress-container.visible { display: flex; }
+    .progress-container .progress-bar { flex: 1; height: 3px; background: var(--bg-input); border-radius: 2px; overflow: hidden; display: block; }
+    .cancel-analysis-btn {
+      width: 18px; height: 18px; background: transparent; border: 1px solid var(--danger);
+      border-radius: 50%; color: var(--danger); font-size: 9px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0;
+      line-height: 1;
+    }
+    .cancel-analysis-btn:hover { background: rgba(224,85,85,0.15); }
+
+    /* Timeline clip button */
+    .analyze-clip-row { display: flex; gap: 6px; margin-top: 5px; }
+    .btn-timeline-clip {
+      flex: 1; height: 24px; background: var(--bg-tertiary); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text-muted); font-size: 9px;
+      cursor: pointer; text-align: center;
+    }
+    .btn-timeline-clip:hover { background: #404040; color: var(--text-primary); border-color: var(--text-muted); }
   </style>
 </head>
 <body>
@@ -302,7 +347,28 @@
         <div class="drop-text">Drop audio or <strong>click to browse</strong><br/><span style="font-size:8px;color:var(--text-muted);">Analyzes drums, bass, melody, vocals separately</span></div>
         <input type="file" id="audioFileInput" accept="audio/*" />
       </div>
-      <div class="progress-bar" id="analysisProgress"><div class="progress-fill" id="analysisProgressFill"></div></div>
+      <div class="analyze-clip-row">
+        <button class="btn-timeline-clip" id="analyzeClipBtn" onclick="analyzeClipFromTimeline()">⬛ Analyze Selected Timeline Clip</button>
+      </div>
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-bar"><div class="progress-fill" id="analysisProgressFill"></div></div>
+        <button class="cancel-analysis-btn" onclick="cancelCurrentAnalysis()" title="Cancel analysis">✕</button>
+      </div>
+
+      <div class="preset-row">
+        <label style="font-size:10px;color:var(--text-secondary);min-width:50px;flex-shrink:0;">Preset</label>
+        <select class="preset-select" id="genrePreset" onchange="applyGenrePreset(this.value)">
+          <option value="">Custom</option>
+          <option value="rock">Rock</option>
+          <option value="edm">EDM</option>
+          <option value="hiphop">Hip-Hop</option>
+          <option value="classical">Classical</option>
+          <option value="acoustic">Acoustic</option>
+          <option value="podcast">Podcast / Vocals</option>
+        </select>
+        <button class="btn-suggest" id="suggestPresetBtn" onclick="suggestPreset()" title="Analyze audio and suggest best preset">✨ Suggest</button>
+      </div>
+      <div class="preset-hint" id="presetHint"></div>
 
       <div class="bpm-display">
         <div class="bpm-value" id="bpmDisplay">—</div>
