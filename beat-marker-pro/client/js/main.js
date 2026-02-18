@@ -505,8 +505,8 @@ function placeDetectedMarkers() {
       startSec = rangeInfo.playerPosition;
     }
 
-    // Apply offset (assume ~24fps for frame offset if we don't know exact fps)
-    var offsetSec = state.offsetFrames / 24;
+    // Apply offset using actual sequence fps
+    var offsetSec = state.offsetFrames / (rangeInfo.fps || 24);
     startSec += offsetSec;
 
     // Filter events to range
@@ -608,7 +608,7 @@ function placeGridMarkers() {
       startSec = parseFloat(rangeInfo.playerPosition);
     }
 
-    var offsetSec = state.offsetFrames / 24;
+    var offsetSec = state.offsetFrames / (rangeInfo.fps || 24);
     startSec += offsetSec;
 
     var beatDurSec = 60 / state.bpm;
@@ -735,15 +735,22 @@ function clearAllMarkers() {
 
 function usePlayheadAsOffset() {
   if (!csInterface) { setStatus("error", "Not connected"); return; }
-  evalScript("getPlayheadFrames(24)").then(function (res) {
-    var frames = parseInt(res);
-    if (frames >= 0) {
-      state.offsetFrames = frames;
-      document.getElementById("offsetFrames").value = frames;
-      setStatus("ready", "Offset: frame " + frames);
-    } else {
-      setStatus("error", "Could not read playhead");
-    }
+  evalScript("getInOutRange()").then(function (rangeRes) {
+    var fps = 24;
+    try {
+      var rangeInfo = JSON.parse(rangeRes);
+      if (rangeInfo.fps && rangeInfo.fps > 0) fps = rangeInfo.fps;
+    } catch (e) {}
+    evalScript("getPlayheadFrames(" + fps + ")").then(function (res) {
+      var frames = parseInt(res);
+      if (frames >= 0) {
+        state.offsetFrames = frames;
+        document.getElementById("offsetFrames").value = frames;
+        setStatus("ready", "Offset: frame " + frames);
+      } else {
+        setStatus("error", "Could not read playhead");
+      }
+    });
   });
 }
 

@@ -80,11 +80,18 @@ function getInOutRange() {
   var seq = app.project.activeSequence;
   if (!seq) return JSON.stringify({ error: "No active sequence" });
 
+  var fps = 24;
+  try {
+    var seqFps = parseFloat(seq.getSettings().videoFrameRate);
+    if (seqFps && seqFps > 0) fps = seqFps;
+  } catch (e) {}
+
   var result = {
     inPoint: parseFloat(seq.getInPointAsTime().seconds),
     outPoint: parseFloat(seq.getOutPointAsTime().seconds),
     endTime: parseFloat(seq.end),
     playerPosition: parseFloat(seq.getPlayerPosition().seconds),
+    fps: fps,
   };
 
   return JSON.stringify(result);
